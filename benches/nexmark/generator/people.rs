@@ -6,6 +6,8 @@ use super::NexmarkGenerator;
 use crate::config;
 use crate::model::{DateTime, Id, Person};
 use rand::{seq::SliceRandom, Rng};
+use std::cmp::min;
+use std::time::Duration;
 
 // Keep the number of states small so that the example queries will find
 // results even with a small batch of events.
@@ -49,7 +51,7 @@ impl<R: Rng + ?Sized> NexmarkGenerator<R> {
             credit_card: self.next_credit_card(),
             city: self.next_us_city(),
             state: self.next_us_state(),
-            date_time: DateTime::UNIX_EPOCH + std::time::Duration::from_millis(timestamp),
+            date_time: DateTime::UNIX_EPOCH + Duration::from_millis(timestamp),
             extra: String::new(),
         }
     }
@@ -67,7 +69,7 @@ impl<R: Rng + ?Sized> NexmarkGenerator<R> {
     /// FIRST_PERSON_ID offset, and should really be "offset 0".
     pub fn next_base0_person_id(&mut self, event_id: Id) -> Id {
         let num_people = self.last_base0_person_id(event_id) + 1;
-        let active_people = std::cmp::min(num_people, config::NUM_ACTIVE_PEOPLE);
+        let active_people = min(num_people, config::NUM_ACTIVE_PEOPLE);
         let n = self
             .rng
             .gen_range(0..(active_people + config::PERSON_ID_LEAD));
@@ -157,8 +159,7 @@ mod tests {
                 credit_card: "0000 0000 0000 0000".into(),
                 city: "Phoenix".into(),
                 state: "AZ".into(),
-                date_time: DateTime::UNIX_EPOCH
-                    + std::time::Duration::from_millis(1_000_000_000_000),
+                date_time: DateTime::UNIX_EPOCH + Duration::from_millis(1_000_000_000_000),
                 extra: String::new(),
             }
         );
