@@ -34,12 +34,7 @@ const LAST_NAMES: &[&str] = &[
 
 impl<R: Rng + ?Sized> NexmarkGenerator<R> {
     // Generate and return a random person with next available id.
-    pub fn next_person(
-        &mut self,
-        conf: &config::Config,
-        next_event_id: Id,
-        timestamp: u64,
-    ) -> Person {
+    pub fn next_person(&mut self, next_event_id: Id, timestamp: u64) -> Person {
         // TODO(absoludity): Figure out the purpose of the extra field - appears to be
         // aiming to adjust the number of bytes for the record to be an average, which will
         // need slightly different handling in Rust.
@@ -48,7 +43,7 @@ impl<R: Rng + ?Sized> NexmarkGenerator<R> {
         // String extra = nextExtra(random, currentSize, config.getAvgPersonByteSize());
 
         Person {
-            id: self.last_base0_person_id(conf, next_event_id) + config::FIRST_PERSON_ID,
+            id: self.last_base0_person_id(next_event_id) + config::FIRST_PERSON_ID,
             name: self.next_person_name(),
             email_address: self.next_email(),
             credit_card: self.next_credit_card(),
@@ -70,8 +65,8 @@ impl<R: Rng + ?Sized> NexmarkGenerator<R> {
     /// NOTE: The above is the original comment from the Java implementation. The
     /// "base 0" is referring to the fact that the returned Id is not including the
     /// FIRST_PERSON_ID offset, and should really be "offset 0".
-    pub fn next_base0_person_id(&mut self, conf: &config::Config, event_id: Id) -> Id {
-        let num_people = self.last_base0_person_id(conf, event_id) + 1;
+    pub fn next_base0_person_id(&mut self, event_id: Id) -> Id {
+        let num_people = self.last_base0_person_id(event_id) + 1;
         let active_people = std::cmp::min(num_people, config::NUM_ACTIVE_PEOPLE);
         let n = self
             .rng
@@ -81,17 +76,17 @@ impl<R: Rng + ?Sized> NexmarkGenerator<R> {
 
     /// Return the last valid person id (ignoring FIRST_PERSON_ID). Will be the
     /// current person id if due to generate a person.
-    pub fn last_base0_person_id(&self, conf: &config::Config, event_id: Id) -> Id {
-        let epoch = event_id / conf.total_proportion();
-        let mut offset = event_id % conf.total_proportion();
+    pub fn last_base0_person_id(&self, event_id: Id) -> Id {
+        let epoch = event_id / self.config.total_proportion();
+        let mut offset = event_id % self.config.total_proportion();
 
-        if offset >= conf.person_proportion {
+        if offset >= self.config.person_proportion {
             // About to generate an auction or bid.
             // Go back to the last person generated in this epoch.
-            offset = conf.person_proportion - 1;
+            offset = self.config.person_proportion - 1;
         }
         // About to generate a person.
-        epoch * conf.person_proportion + offset
+        epoch * self.config.person_proportion + offset
     }
 
     // Return a random US state.
@@ -146,12 +141,12 @@ mod tests {
 
     #[test]
     fn test_next_person() {
-        let conf = make_default_config();
         let mut ng = NexmarkGenerator {
             rng: StepRng::new(0, 5),
+            config: make_default_config(),
         };
 
-        let p = ng.next_person(&conf, 105, 1_000_000_000_000);
+        let p = ng.next_person(105, 1_000_000_000_000);
 
         assert_eq!(
             p,
@@ -171,9 +166,9 @@ mod tests {
 
     #[test]
     fn test_next_base0_person_id() {
-        let conf = make_default_config();
         let mut ng = NexmarkGenerator {
             rng: StepRng::new(0, 5),
+            config: make_default_config(),
         };
 
         // When one more than the last person id is less than the configured
@@ -181,43 +176,43 @@ mod tests {
         // the currently active people plus the 'lead' people.
         // Note: the mock rng is always returning zero for the random addition
         // in the range (0..active_people).
-        assert_eq!(ng.next_base0_person_id(&conf, 50 * 998), 0);
+        assert_eq!(ng.next_base0_person_id(50 * 998), 0);
 
         // Even when one more than the last person id is equal to the configured
         // active people, the id returned is a random id from one of the
         // active people plus the 'lead' people.
-        assert_eq!(ng.next_base0_person_id(&conf, 50 * 999), 0);
+        assert_eq!(ng.next_base0_person_id(50 * 999), 0);
 
         // When one more than the last person id is one greater than the
         // configured active people, we consider the most recent
         // NUM_ACTIVE_PEOPLE to be the active ones, and return a random id from
         // those plus the 'lead'people.
-        assert_eq!(ng.next_base0_person_id(&conf, 50 * 1000), 1);
+        assert_eq!(ng.next_base0_person_id(50 * 1000), 1);
 
         // When one more than the last person id is 501 greater than the
         // configured active people, we consider the most recent
         // NUM_ACTIVE_PEOPLE to be the active ones, and return a random id from
         // those plus the 'lead' people.
-        assert_eq!(ng.next_base0_person_id(&conf, 50 * 1500), 501);
+        assert_eq!(ng.next_base0_person_id(50 * 1500), 501);
     }
 
     #[test]
     fn test_last_base0_person_id_default() {
-        let conf = make_default_config();
         let ng = NexmarkGenerator {
             rng: StepRng::new(0, 5),
+            config: make_default_config(),
         };
 
         // With the default config, the first 50 events will only include one
         // person
-        assert_eq!(ng.last_base0_person_id(&conf, 25), 0);
+        assert_eq!(ng.last_base0_person_id(25), 0);
 
         // The 50th event will correspond to the next...
-        assert_eq!(ng.last_base0_person_id(&conf, 50), 1);
-        assert_eq!(ng.last_base0_person_id(&conf, 75), 1);
+        assert_eq!(ng.last_base0_person_id(50), 1);
+        assert_eq!(ng.last_base0_person_id(75), 1);
 
         // And so on...
-        assert_eq!(ng.last_base0_person_id(&conf, 100), 2);
+        assert_eq!(ng.last_base0_person_id(100), 2);
     }
 
     #[test]
@@ -225,24 +220,27 @@ mod tests {
         // Set the configured bid proportion to 21,
         // which together with the other defaults for person and auction
         // proportion, makes the total 25.
-        let mut conf = make_default_config();
-        conf.bid_proportion = 21;
         let ng = NexmarkGenerator {
             rng: StepRng::new(0, 5),
+            config: Config {
+                bid_proportion: 21,
+                ..make_default_config()
+            },
         };
 
         // With the total proportion at 25, there will be a new person
         // at every 25th event.
-        assert_eq!(ng.last_base0_person_id(&conf, 25), 1);
-        assert_eq!(ng.last_base0_person_id(&conf, 50), 2);
-        assert_eq!(ng.last_base0_person_id(&conf, 75), 3);
-        assert_eq!(ng.last_base0_person_id(&conf, 100), 4);
+        assert_eq!(ng.last_base0_person_id(25), 1);
+        assert_eq!(ng.last_base0_person_id(50), 2);
+        assert_eq!(ng.last_base0_person_id(75), 3);
+        assert_eq!(ng.last_base0_person_id(100), 4);
     }
 
     #[test]
     fn test_next_us_state() {
         let mut ng = NexmarkGenerator {
             rng: StepRng::new(0, 5),
+            config: make_default_config(),
         };
 
         let s = ng.next_us_state();
@@ -254,6 +252,7 @@ mod tests {
     fn test_next_us_city() {
         let mut ng = NexmarkGenerator {
             rng: StepRng::new(0, 5),
+            config: make_default_config(),
         };
 
         let c = ng.next_us_city();
@@ -265,6 +264,7 @@ mod tests {
     fn test_next_person_name() {
         let mut ng = NexmarkGenerator {
             rng: StepRng::new(0, 5),
+            config: make_default_config(),
         };
 
         let n = ng.next_person_name();
@@ -276,6 +276,7 @@ mod tests {
     fn test_next_email() {
         let mut ng = NexmarkGenerator {
             rng: StepRng::new(0, 5),
+            config: make_default_config(),
         };
 
         let e = ng.next_email();
@@ -287,6 +288,7 @@ mod tests {
     fn test_next_credit_card() {
         let mut ng = NexmarkGenerator {
             rng: StepRng::new(0, 5),
+            config: make_default_config(),
         };
 
         let e = ng.next_credit_card();

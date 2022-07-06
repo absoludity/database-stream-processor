@@ -21,12 +21,15 @@ impl<R: Rng + ?Sized> NexmarkGenerator<R> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::Config;
+    use clap::Parser;
     use rand::rngs::mock::StepRng;
 
     #[test]
     fn next_string_length() {
         let mut ng = NexmarkGenerator {
             rng: StepRng::new(0, 5),
+            config: Config::parse(),
         };
 
         let s = ng.next_string(5);
