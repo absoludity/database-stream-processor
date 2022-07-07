@@ -8,7 +8,7 @@ use rand::Rng;
 mod people;
 mod strings;
 
-pub struct NexmarkGenerator<R: Rng + ?Sized> {
+pub struct NexmarkGenerator<R: Rng> {
     config: Config,
     rng: R,
 }

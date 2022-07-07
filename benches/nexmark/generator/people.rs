@@ -34,7 +34,7 @@ const LAST_NAMES: &[&str] = &[
     "Shultz", "Abrams", "Spencer", "White", "Bartels", "Walton", "Smith", "Jones", "Noris",
 ];
 
-impl<R: Rng + ?Sized> NexmarkGenerator<R> {
+impl<R: Rng> NexmarkGenerator<R> {
     // Generate and return a random person with next available id.
     pub fn next_person(&mut self, next_event_id: Id, timestamp: u64) -> Person {
         // TODO(absoludity): Figure out the purpose of the extra field - appears to be

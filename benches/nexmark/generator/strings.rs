@@ -7,7 +7,7 @@ use rand::{distributions::Alphanumeric, Rng};
 
 const MIN_STRING_LENGTH: usize = 3;
 
-impl<R: Rng + ?Sized> NexmarkGenerator<R> {
+impl<R: Rng> NexmarkGenerator<R> {
     pub fn next_string(&mut self, max_length: usize) -> String {
         let len = self.rng.gen_range(MIN_STRING_LENGTH..=max_length);
         (&mut self.rng)
